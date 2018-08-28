@@ -22,6 +22,7 @@ def config():
     z_dimension = 100
     batch_size = 64
     convolutional = False
+    beta = 100
 
 
 @ex.named_config
@@ -40,6 +41,7 @@ def train(
     z_dimension,
     output_shape,
     convolutional,
+    beta
 ):
 
     (x_train, _), (_, _) = tf.keras.datasets.mnist.load_data()
@@ -80,7 +82,7 @@ def train(
     kl_divergence = tf.reduce_sum(tf.distributions.kl_divergence(q_z, p_z), axis=1)
     expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), axis=[1, 2, 3])
 
-    elbo = tf.reduce_sum(expected_log_likelihood - kl_divergence, axis=0)
+    elbo = tf.reduce_sum(expected_log_likelihood - beta * kl_divergence, axis=0)
     tf.summary.scalar("elbo", elbo / batch_size)
 
     optimizer = tf.train.AdamOptimizer()

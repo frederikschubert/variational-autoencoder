@@ -66,7 +66,7 @@ def train(
             loc=np.zeros(shape=z_dimension, dtype=np.float32),
             scale=np.ones(shape=z_dimension, dtype=np.float32),
         )
-        p_x_given_z_logits = decoder(tf.expand_dims(p_z.sample(), 0))
+        p_x_given_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
         p_x_given_z = tf.distributions.Bernoulli(logits=p_x_given_z_logits)
         prior_sample = p_x_given_z.sample()
         tf.summary.image("prior_sample", tf.cast(prior_sample, tf.float32))
@@ -77,10 +77,10 @@ def train(
         posterior_sample = p_x_given_z.sample()
         tf.summary.image("posterior_sample", tf.cast(posterior_sample, tf.float32))
 
-    kl_divergence = tf.reduce_sum(tf.distributions.kl_divergence(q_z, p_z))
-    expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), [1, 2, 3])
+    kl_divergence = tf.reduce_sum(tf.distributions.kl_divergence(q_z, p_z), axis=1)
+    expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), axis=[1, 2, 3])
 
-    elbo = tf.reduce_sum(expected_log_likelihood - kl_divergence, 0)
+    elbo = tf.reduce_sum(expected_log_likelihood - kl_divergence, axis=0)
     tf.summary.scalar("elbo", elbo / batch_size)
 
     optimizer = tf.train.AdamOptimizer()

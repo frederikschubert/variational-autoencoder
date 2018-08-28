@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from sacred import Experiment
 from sacred.observers import FileStorageObserver
+from sacred.stflow import LogFileWriter
 
 from encoder import Encoder
 from decoder import Decoder
@@ -13,30 +14,44 @@ ex.observers.append(FileStorageObserver.create("tmp"))
 
 
 @ex.config
-def mnist():
+def config():
     log_dir = "./tmp"
     log_interval = 1000
     iterations = 100000
     output_shape = [28, 28, 1]
     z_dimension = 100
     batch_size = 64
+    convolutional = False
+
+
+@ex.named_config
+def cnn():
+    convolutional = True
 
 
 @ex.automain
+@LogFileWriter(ex)
 def train(
-    _log, log_dir, log_interval, z_dimension, output_shape, batch_size, iterations
+    _log,
+    log_dir,
+    log_interval,
+    batch_size,
+    iterations,
+    z_dimension,
+    output_shape,
+    convolutional,
 ):
 
     (x_train, _), (_, _) = tf.keras.datasets.mnist.load_data()
     x_train = x_train / 255.0
-    x_train = (x_train < 0.5).astype(np.float32)
+    x_train = (x_train > 0.5).astype(np.float32)
     x_train = np.expand_dims(x_train, -1)
     dataset = tf.data.Dataset.from_tensor_slices(x_train).repeat().batch(batch_size)
 
     x = dataset.make_one_shot_iterator().get_next()
 
-    encoder = Encoder(z_dimension)
-    decoder = Decoder(output_shape)
+    encoder = Encoder(z_dimension, convolutional)
+    decoder = Decoder(output_shape, convolutional)
 
     with tf.name_scope("data"):
         tf.summary.image("mnist_image", x)
@@ -75,7 +90,7 @@ def train(
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
+        writer = tf.summary.FileWriter(logdir=log_dir)
 
         ts = time.time()
         _log.info("Training started.")
@@ -88,7 +103,7 @@ def train(
                 writer.add_summary(iteration_summary, i)
 
                 _log.info(
-                    "Iteration: {0:d} ELBO: {1:.3f} s/iter: {2:.3e}".format(
+                    "Iteration: {0:d} ELBO: {1:.3f} seconds/batch: {2:.3e}".format(
                         i,
                         iteration_elbo / batch_size,
                         (time.time() - ts) / log_interval,

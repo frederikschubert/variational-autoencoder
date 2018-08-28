@@ -34,6 +34,7 @@ def cnn():
 @LogFileWriter(ex)
 def train(
     _log,
+    _run,
     log_dir,
     log_interval,
     batch_size,
@@ -92,7 +93,7 @@ def train(
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        writer = tf.summary.FileWriter(logdir=log_dir)
+        writer = tf.summary.FileWriter(logdir=f"{log_dir}/{_run._id}")
 
         ts = time.time()
         _log.info("Training started.")

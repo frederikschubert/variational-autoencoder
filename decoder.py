@@ -6,8 +6,8 @@ class Decoder(keras.Model):
     def __init__(self, output_shape, convolutional):
         super().__init__()
         self.convolutional = convolutional
-        self.hidden1 = keras.layers.Dense(256)
-        self.hidden2 = keras.layers.Dense(256)
+        self.hidden1 = keras.layers.Dense(256, activation="relu")
+        self.hidden2 = keras.layers.Dense(256, activation="relu")
         self.hidden3 = keras.layers.Dense(np.product(output_shape))
         self.reshaped = keras.layers.Reshape(output_shape)
         self.deconv1 = keras.layers.Conv2DTranspose(

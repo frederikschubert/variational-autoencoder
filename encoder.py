@@ -5,8 +5,8 @@ class Encoder(keras.Model):
     def __init__(self, z_dimension, convolutional):
         super().__init__()
         self.convolutional = convolutional
-        self.hidden1 = keras.layers.Dense(256)
-        self.hidden2 = keras.layers.Dense(256)
+        self.hidden1 = keras.layers.Dense(256, activation="relu")
+        self.hidden2 = keras.layers.Dense(256, activation="relu")
         self.conv1 = keras.layers.Conv2D(
             filters=64,
             kernel_size=4,

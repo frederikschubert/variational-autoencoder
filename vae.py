@@ -1,3 +1,5 @@
+import time
+
 import tensorflow as tf
 import numpy as np
 from sacred import Experiment
@@ -75,6 +77,7 @@ def train(
         sess.run(tf.global_variables_initializer())
         writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
 
+        ts = time.time()
         for i in range(iterations):
 
             sess.run(train_op)
@@ -83,4 +86,6 @@ def train(
                 iteration_elbo, iteration_summary = sess.run([elbo, summary_op])
                 writer.add_summary(iteration_summary, i)
 
-                _log.info(f"Iteration {i}\tELBO {iteration_elbo}")
+                _log.info(f"Iteration {i}\tELBO {iteration_elbo / batch_size}\ts/batch {(time.time() - ts) / log_interval}")
+                ts = time.time()
+

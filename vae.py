@@ -18,7 +18,7 @@ def mnist():
     log_interval = 1000
     iterations = 100000
     output_shape = [28, 28, 1]
-    z_dimension = 2
+    z_dimension = 100
     batch_size = 64
 
 
@@ -39,7 +39,6 @@ def train(
     decoder = Decoder(output_shape)
 
     with tf.name_scope("data"):
-
         tf.summary.image("mnist_image", x)
 
     with tf.variable_scope("variational"):
@@ -52,7 +51,7 @@ def train(
             loc=np.zeros(shape=z_dimension, dtype=np.float32),
             scale=np.ones(shape=z_dimension, dtype=np.float32),
         )
-        p_x_given_z_logits = decoder(p_z.sample(1))
+        p_x_given_z_logits = decoder(tf.expand_dims(p_z.sample(), 0))
         p_x_given_z = tf.distributions.Bernoulli(logits=p_x_given_z_logits)
         prior_sample = p_x_given_z.sample()
         tf.summary.image("prior_sample", tf.cast(prior_sample, tf.float32))
@@ -67,6 +66,7 @@ def train(
     expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), [1, 2, 3])
 
     elbo = tf.reduce_sum(expected_log_likelihood - kl_divergence, 0)
+    tf.summary.scalar("elbo", elbo / batch_size)
 
     optimizer = tf.train.AdamOptimizer()
 
@@ -78,6 +78,7 @@ def train(
         writer = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
 
         ts = time.time()
+        _log.info("Training started.")
         for i in range(iterations):
 
             sess.run(train_op)
@@ -86,6 +87,12 @@ def train(
                 iteration_elbo, iteration_summary = sess.run([elbo, summary_op])
                 writer.add_summary(iteration_summary, i)
 
-                _log.info(f"Iteration {i}\tELBO {iteration_elbo / batch_size}\ts/batch {(time.time() - ts) / log_interval}")
+                _log.info(
+                    "Iteration: {0:d} ELBO: {1:.3f} s/iter: {2:.3e}".format(
+                        i,
+                        iteration_elbo / batch_size,
+                        (time.time() - ts) / log_interval,
+                    )
+                )
                 ts = time.time()
-
+        _log.info("Training finished.")

@@ -1,5 +1,4 @@
 from tensorflow import keras
-import numpy as np
 
 
 class Encoder(keras.Model):

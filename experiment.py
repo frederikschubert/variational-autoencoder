@@ -26,12 +26,6 @@ def cnn():
     mode = "convolutional"
 
 
-@ex.named_config
-def discrete(_log):
-    _log.error("Discrete does not work yet!")
-    mode = "discrete"
-
-
 @ex.capture
 def create_dataset(batch_size=64, _log=None):
     _log.info("Creating dataset...")
@@ -58,5 +52,5 @@ def run_training(train_op, summary_op, iterations=50000, log_interval=1000, _log
             sess.run(train_op)
             if i % log_interval == 0:
                 iteration_summary = sess.run([summary_op])
-                writer.add_summary(iteration_summary, i)
+                writer.add_summary(iteration_summary[0], i)
         _log.info("Training finished.")

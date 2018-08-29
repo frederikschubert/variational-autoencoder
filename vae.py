@@ -1,7 +1,6 @@
 from typing import List
 
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 
 from sacred.stflow import LogFileWriter
@@ -12,14 +11,7 @@ import models
 
 @ex.automain
 @LogFileWriter(ex)
-def train(
-    _log,
-    batch_size: int,
-    z_dimension: int,
-    output_shape: List[int],
-    mode: str,
-    beta: float,
-):
+def train(_log, z_dimension: int, output_shape: List[int], mode: str, beta: float):
     dataset = create_dataset()
 
     _log.info("Building computation graph...")
@@ -29,9 +21,6 @@ def train(
     if mode == "convolutional":
         encoder = models.EncoderConvolutional(z_dimension)
         decoder = models.DecoderConvolutional(output_shape)
-    elif mode == "discrete":
-        encoder = models.EncoderDiscrete(z_dimension)
-        decoder = models.DecoderDiscrete(output_shape)
     else:
         encoder = models.Encoder(z_dimension)
         decoder = models.Decoder(output_shape)
@@ -39,18 +28,11 @@ def train(
     with tf.name_scope("data"):
         tf.summary.image("mnist_image", x)
 
-    if mode == "discrete":
-        with tf.variable_scope("variational"):
-            x_encoded = encoder(x)
-            q_z_given_x = tfp.distributions.RelaxedBernoulli(
-                temperature=2. / 3., logits=x_encoded
-            )
-    else:
-        with tf.variable_scope("variational"):
-            z_mean, z_log_variance = encoder(x)
-            q_z_given_x = tf.distributions.Normal(
-                loc=z_mean, scale=tf.exp(0.5 * z_log_variance)
-            )
+    with tf.variable_scope("variational"):
+        z_mean, z_log_variance = encoder(x)
+        q_z_given_x = tf.distributions.Normal(
+            loc=z_mean, scale=tf.exp(0.5 * z_log_variance)
+        )
 
     with tf.variable_scope("posterior", reuse=True):
         p_x_given_z_logits = decoder(q_z_given_x.sample())
@@ -60,15 +42,10 @@ def train(
         tf.summary.image("posterior_sample", tf.cast(posterior_sample, tf.float32))
 
     with tf.variable_scope("prior", reuse=True):
-        if mode == "discrete":
-            p_z = tfp.distributions.RelaxedBernoulli(
-                temperature=0.5, logits=np.ones(shape=z_dimension, dtype=np.float32)
-            )
-        else:
-            p_z = tf.distributions.Normal(
-                loc=np.zeros(shape=z_dimension, dtype=np.float32),
-                scale=np.ones(shape=z_dimension, dtype=np.float32),
-            )
+        p_z = tf.distributions.Normal(
+            loc=np.zeros(shape=z_dimension, dtype=np.float32),
+            scale=np.ones(shape=z_dimension, dtype=np.float32),
+        )
         p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
         p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)
         p_x_given_prior_z_sample = p_x_given_prior_z.sample()
@@ -82,7 +59,9 @@ def train(
 
     elbo = tf.reduce_sum(expected_log_likelihood - beta * kl_divergence, axis=0)
     tf.summary.scalar("kl_divergence", tf.reduce_mean(kl_divergence))
-    tf.summary.scalar("negative_log_likelihood", tf.reduce_mean(expected_log_likelihood))
+    tf.summary.scalar(
+        "negative_log_likelihood", tf.reduce_mean(expected_log_likelihood)
+    )
 
     train_op = tf.train.AdamOptimizer().minimize(-elbo)
     summary_op = tf.summary.merge_all()

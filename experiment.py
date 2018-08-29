@@ -15,12 +15,12 @@ def config():
     log_dir = "./tmp"
     log_interval = 1000
     iterations = 50000
-    output_shape = [28, 28, 1]
+    data_shape = [28, 28, 1]
     z_dimension = 100
     batch_size = 64
     mode = "default"
     # See "Understanding disentangling in β-VAE" @ https://arxiv.org/abs/1804.03599
-    beta = 1.15
+    beta = 1.0
 
 
 @ex.named_config

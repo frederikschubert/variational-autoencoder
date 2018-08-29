@@ -1,17 +1,48 @@
-from tensorflow import keras
+from tensorflow.keras import models, layers
 import numpy as np
 
 
-class Decoder(keras.Model):
-    def __init__(self, output_shape):
-        super().__init__()
-        self.hidden1 = keras.layers.Dense(256, activation="relu")
-        self.hidden2 = keras.layers.Dense(256, activation="relu")
-        self.reshaped1 = keras.layers.Dense(np.product(output_shape))
-        self.reshaped2 = keras.layers.Reshape(output_shape)
+def create_convolutional_decoder(data_shape):
+    return models.Sequential(
+        layers=[
+            layers.Dense(np.product(data_shape), activation="relu"),
+            layers.Reshape(data_shape),
+            layers.Conv2DTranspose(
+                filters=64,
+                kernel_size=4,
+                activation="relu",
+                padding="same",
+                name="deconv1",
+            ),
+            layers.Conv2DTranspose(
+                filters=64,
+                kernel_size=4,
+                activation="relu",
+                padding="same",
+                name="deconv2",
+            ),
+            layers.Conv2DTranspose(
+                filters=64,
+                kernel_size=4,
+                activation="relu",
+                padding="same",
+                name="deconv3",
+            ),
+            layers.Conv2DTranspose(
+                filters=1, kernel_size=4, padding="same", name="output"
+            ),
+        ],
+        name="decoder",
+    )
 
-    def call(self, inputs):
-        x = self.hidden1(inputs)
-        x = self.hidden2(x)
-        x = self.reshaped1(x)
-        return self.reshaped2(x)
+
+def create_decoder(data_shape):
+    return models.Sequential(
+        layers=[
+            layers.Dense(256, activation="relu"),
+            layers.Dense(256, activation="relu"),
+            layers.Dense(np.product(data_shape)),
+            layers.Reshape(data_shape),
+        ],
+        name="decoder",
+    )

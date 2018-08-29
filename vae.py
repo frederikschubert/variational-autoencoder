@@ -13,7 +13,11 @@ import models
 @ex.automain
 @LogFileWriter(ex)
 def train(
-    _log: Logger, z_dimension: int, output_shape: List[int], mode: str, beta: float # pylint: disable=C0330
+    _log: Logger,
+    z_dimension: int,
+    data_shape: List[int],
+    mode: str,
+    beta: float,  # pylint: disable=C0330
 ):
     dataset = create_dataset()
 
@@ -22,11 +26,11 @@ def train(
     x = dataset.make_one_shot_iterator().get_next()
 
     if mode == "convolutional":
-        encoder = models.EncoderConvolutional(z_dimension)
-        decoder = models.DecoderConvolutional(output_shape)
+        encoder = models.create_convolutional_encoder(data_shape, z_dimension)
+        decoder = models.create_convolutional_decoder(data_shape)
     else:
-        encoder = models.Encoder(z_dimension)
-        decoder = models.Decoder(output_shape)
+        encoder = models.create_encoder(data_shape, z_dimension)
+        decoder = models.create_decoder(data_shape)
 
     with tf.name_scope("data"):
         tf.summary.image("mnist_image", x)

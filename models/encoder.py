@@ -1,17 +1,43 @@
-from tensorflow import keras
+from tensorflow.keras import models, layers
 
 
-class Encoder(keras.Model):
-    def __init__(self, z_dimension):
-        super().__init__()
-        self.flatten = keras.layers.Flatten()
-        self.hidden1 = keras.layers.Dense(256, activation="relu")
-        self.hidden2 = keras.layers.Dense(256, activation="relu")
-        self.z_mean = keras.layers.Dense(z_dimension)
-        self.z_log_variance = keras.layers.Dense(z_dimension)
+def create_convolutional_encoder(data_shape, z_dimension):
+    inputs = layers.Input(shape=data_shape)
+    conv1 = layers.Conv2D(
+        filters=64,
+        kernel_size=4,
+        strides=2,
+        activation="relu",
+        padding="same",
+        name="conv1",
+    )(inputs)
+    conv2 = layers.Conv2D(
+        filters=64,
+        kernel_size=4,
+        strides=2,
+        activation="relu",
+        padding="same",
+        name="conv2",
+    )(conv1)
+    conv3 = layers.Conv2D(
+        filters=64,
+        kernel_size=4,
+        strides=2,
+        activation="relu",
+        padding="same",
+        name="conv3",
+    )(conv2)
+    flatten = layers.Flatten()(conv3)
+    z_mean = layers.Dense(z_dimension)(flatten)
+    z_log_variance = layers.Dense(z_dimension)(flatten)
+    return models.Model(inputs, [z_mean, z_log_variance], name="encoder")
 
-    def call(self, inputs):
-        x = self.flatten(inputs)
-        x = self.hidden1(x)
-        x = self.hidden2(x)
-        return self.z_mean(x), self.z_log_variance(x)
+
+def create_encoder(data_shape, z_dimension):
+    inputs = layers.Input(shape=data_shape)
+    flatten = layers.Flatten()(inputs)
+    hidden1 = layers.Dense(256, activation="relu")(flatten)
+    hidden2 = layers.Dense(256, activation="relu")(hidden1)
+    z_mean = layers.Dense(z_dimension)(hidden2)
+    z_log_variance = layers.Dense(z_dimension)(hidden2)
+    return models.Model(inputs, [z_mean, z_log_variance], name="encoder")

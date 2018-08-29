@@ -1,5 +1,2 @@
-from .decoder import Decoder
-from .decoder_convolutional import DecoderConvolutional
-
-from .encoder import Encoder
-from .encoder_convolutional import EncoderConvolutional
+from .decoder import create_decoder, create_convolutional_decoder
+from .encoder import create_encoder, create_convolutional_encoder

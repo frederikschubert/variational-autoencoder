@@ -17,11 +17,7 @@ class DecoderConvolutional(keras.Model):
             filters=64, kernel_size=4, activation="relu", padding="same", name="deconv3"
         )
         self.deconv4 = keras.layers.Conv2DTranspose(
-            filters=1,
-            kernel_size=1,
-            activation="sigmoid",
-            padding="same",
-            name="output",
+            filters=1, kernel_size=4, padding="same", name="output"
         )
 
     def call(self, inputs):

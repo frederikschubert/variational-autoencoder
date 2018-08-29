@@ -1,4 +1,5 @@
 import time
+from logging import Logger
 import tensorflow as tf
 import numpy as np
 
@@ -28,7 +29,7 @@ def cnn():
 
 
 @ex.capture
-def create_dataset(batch_size=64, _log=None):
+def create_dataset(batch_size=64, _log: Logger = None):
     _log.info("Creating dataset...")
     (x_train, _), (_, _) = tf.keras.datasets.mnist.load_data()
     x_train = x_train / 255.0
@@ -43,7 +44,9 @@ def create_writer(log_dir="./tmp", _run=None):
 
 
 @ex.capture
-def run_training(train_op, summary_op, iterations=50000, log_interval=1000, _log=None):
+def run_training(
+    train_op, summary_op, iterations=50000, log_interval=1000, _log: Logger = None
+):
     _log.info("Training started.")
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -53,7 +56,9 @@ def run_training(train_op, summary_op, iterations=50000, log_interval=1000, _log
         for i in range(iterations):
             sess.run(train_op)
             if i % log_interval == 0:
-                _log.info(f"iteration: {i} - seconds/batch: {round((time.time() - ts) / log_interval, 3)}")
+                _log.info(
+                    f"iteration: {i} - seconds/batch: {round((time.time() - ts) / log_interval, 3)}"
+                )
                 ts = time.time()
                 iteration_summary = sess.run(summary_op)
                 writer.add_summary(iteration_summary, i)

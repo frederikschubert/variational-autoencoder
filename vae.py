@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import List
 
 import tensorflow as tf
@@ -11,7 +12,9 @@ import models
 
 @ex.automain
 @LogFileWriter(ex)
-def train(_log, z_dimension: int, output_shape: List[int], mode: str, beta: float):
+def train(
+    _log: Logger, z_dimension: int, output_shape: List[int], mode: str, beta: float # pylint: disable=C0330
+):
     dataset = create_dataset()
 
     _log.info("Building computation graph...")

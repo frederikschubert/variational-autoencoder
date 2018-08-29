@@ -1,3 +1,4 @@
+import time
 import tensorflow as tf
 import numpy as np
 
@@ -48,9 +49,12 @@ def run_training(train_op, summary_op, iterations=50000, log_interval=1000, _log
         sess.run(tf.global_variables_initializer())
         writer = create_writer()
 
+        ts = time.time()
         for i in range(iterations):
             sess.run(train_op)
             if i % log_interval == 0:
-                iteration_summary = sess.run([summary_op])
-                writer.add_summary(iteration_summary[0], i)
+                _log.info(f"iteration: {i} - seconds/batch: {round((time.time() - ts) / log_interval, 3)}")
+                ts = time.time()
+                iteration_summary = sess.run(summary_op)
+                writer.add_summary(iteration_summary, i)
         _log.info("Training finished.")

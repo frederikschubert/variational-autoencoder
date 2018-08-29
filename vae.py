@@ -58,9 +58,9 @@ def train(_log, z_dimension: int, output_shape: List[int], mode: str, beta: floa
     expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), axis=[1, 2, 3])
 
     elbo = tf.reduce_sum(expected_log_likelihood - beta * kl_divergence, axis=0)
-    tf.summary.scalar("kl_divergence", tf.reduce_mean(kl_divergence))
+    tf.summary.scalar("kl_divergence", tf.reduce_mean(beta * kl_divergence))
     tf.summary.scalar(
-        "negative_log_likelihood", tf.reduce_mean(expected_log_likelihood)
+        "negative_log_likelihood", tf.reduce_mean(-expected_log_likelihood)
     )
 
     train_op = tf.train.AdamOptimizer().minimize(-elbo)

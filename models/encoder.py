@@ -37,7 +37,7 @@ def create_encoder(data_shape, z_dimension, conditioning_vector=None):
     image_inputs = layers.Input(shape=data_shape)
     flatten = layers.Flatten()(image_inputs)
     if conditioning_vector is not None:
-        condition_inputs = layers.Input(shape=[1])
+        condition_inputs = layers.Input(shape=[10])
         flatten = layers.Concatenate()([flatten, condition_inputs])
     hidden1 = layers.Dense(256, activation="relu")(flatten)
     hidden2 = layers.Dense(256, activation="relu")(hidden1)

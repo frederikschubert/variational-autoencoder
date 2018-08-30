@@ -40,9 +40,6 @@ def create_dataset(batch_size=None, _log: Logger = None, mode=None):
     x_train = x_train / 255.0
     x_train = (x_train > 0.5).astype(np.float32)
     x_train = np.expand_dims(x_train, -1)
-    
-    y_train = y_train.astype(np.float32)
-    y_train = np.expand_dims(y_train, -1)
     if mode == "conditional":
         return (
             tf.data.Dataset.from_tensor_slices((x_train, y_train))

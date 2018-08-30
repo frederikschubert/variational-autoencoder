@@ -26,6 +26,7 @@ def train(
 
     if mode == "conditional":
         x, y = dataset.make_one_shot_iterator().get_next()
+        y = tf.one_hot(y, 10, on_value=1.0, off_value=0.0)
     else:
         x = dataset.make_one_shot_iterator().get_next()
 
@@ -66,8 +67,10 @@ def train(
             scale=np.ones(shape=z_dimension, dtype=np.float32),
         )
         if mode == "conditional":
-            r = tf.expand_dims(tf.expand_dims(tf.constant(1, dtype=tf.float32), axis=0), axis=0)
-            p_x_given_prior_z_logits = decoder([tf.expand_dims(p_z.sample(), axis=0), r])
+            r = tf.expand_dims(tf.one_hot(tf.constant(1), 10, on_value=1.0, off_value=0.0), axis=0)
+            p_x_given_prior_z_logits = decoder(
+                [tf.expand_dims(p_z.sample(), axis=0), r]
+            )
         else:
             p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
         p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)

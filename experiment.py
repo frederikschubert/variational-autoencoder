@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 from logging import Logger
 import tensorflow as tf
 import numpy as np
@@ -33,20 +34,27 @@ def cnn():
 
 
 @ex.capture
-def create_dataset(batch_size=None, _log: Logger = None, mode=None):
+def create_dataset(
+    _log: Logger = None, mode=None
+) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
     _log.info("Creating dataset...")
-    (x_train, y_train), (_, _) = tf.keras.datasets.mnist.load_data()
-    x_train = x_train / 255.0
-    x_train = (x_train > 0.5).astype(np.float32)
-    x_train = np.expand_dims(x_train, -1)
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    x_train, x_test = x_train / 255.0, x_test / 255.0
+    x_train, x_test = (
+        (x_train > 0.5).astype(np.float32),
+        (x_test > 0.5).astype(np.float32),
+    )
+    x_train, x_test = np.expand_dims(x_train, -1), np.expand_dims(x_test, -1)
     if mode == "conditional":
         return (
-            tf.data.Dataset.from_tensor_slices((x_train, y_train))
-            .repeat()
-            .batch(batch_size)
+            tf.data.Dataset.from_tensor_slices((x_train, y_train)).repeat(),
+            tf.data.Dataset.from_tensor_slices((x_test, y_test)).repeat(),
         )
     else:
-        return tf.data.Dataset.from_tensor_slices(x_train).repeat().batch(batch_size)
+        return (
+            tf.data.Dataset.from_tensor_slices(x_train).repeat(),
+            tf.data.Dataset.from_tensor_slices(x_test).repeat(),
+        )
 
 
 @ex.capture
@@ -56,12 +64,18 @@ def create_writer(log_dir=None, _run=None):
 
 @ex.capture
 def run_training(
-    train_op, summary_op, iterations=None, log_interval=None, _log: Logger = None
+    train_op,
+    summary_op,
+    writer,
+    iterations=None,
+    log_interval=None,
+    _log: Logger = None,
 ):
     _log.info("Training started.")
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        writer = create_writer()
+        saver = tf.train.Saver()
+        saver.save(sess, writer.get_logdir(), 1)
 
         ts = time.time()
         for i in range(iterations):

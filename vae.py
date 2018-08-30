@@ -2,12 +2,32 @@ from logging import Logger
 from typing import List
 
 import tensorflow as tf
+from tensorboard.plugins import projector
 import numpy as np
 
 from sacred.stflow import LogFileWriter
 
-from experiment import ex, create_dataset, run_training
+from experiment import ex, create_dataset, run_training, create_writer
 import models
+
+
+def create_elbo(
+    x,
+    p_x_given_z: tf.distributions.Distribution,
+    q_z_given_x: tf.distributions.Distribution,
+    p_z: tf.distributions.Distribution,
+    beta,
+):
+    kl_divergence = tf.reduce_sum(
+        tf.distributions.kl_divergence(q_z_given_x, p_z), axis=1
+    )
+    expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), axis=[1, 2, 3])
+
+    tf.summary.scalar("kl_divergence", tf.reduce_mean(beta * kl_divergence))
+    tf.summary.scalar(
+        "negative_log_likelihood", tf.reduce_mean(-expected_log_likelihood)
+    )
+    return tf.reduce_sum(expected_log_likelihood - beta * kl_divergence, axis=0)
 
 
 @ex.automain
@@ -16,19 +36,22 @@ def train(
     _log: Logger,
     z_dimension: int,
     data_shape: List[int],
-    batch_size: int,
     mode: str,
     beta: float,
+    batch_size: int,
 ):
-    dataset = create_dataset()
+    train_dataset, test_dataset = create_dataset()
+
+    writer = create_writer()
 
     _log.info("Building computation graph...")
 
     if mode == "conditional":
-        x, y = dataset.make_one_shot_iterator().get_next()
+        x, y = train_dataset.batch(batch_size).make_one_shot_iterator().get_next()
         y = tf.one_hot(y, 10, on_value=1.0, off_value=0.0)
     else:
-        x = dataset.make_one_shot_iterator().get_next()
+        x = train_dataset.batch(batch_size).make_one_shot_iterator().get_next()
+        y = None
 
     if mode == "convolutional":
         encoder = models.create_convolutional_encoder(data_shape, z_dimension)
@@ -49,6 +72,14 @@ def train(
         q_z_given_x = tf.distributions.Normal(
             loc=z_mean, scale=tf.exp(0.5 * z_log_variance)
         )
+
+    with tf.name_scope("embedding"):
+        test_set = test_dataset.batch(1000).make_one_shot_iterator().get_next()
+        test_z_mean, _ = encoder(test_set)
+        config = projector.ProjectorConfig()
+        embedding = config.embeddings.add()  # pylint: disable=E1101
+        embedding.tensor_name = test_z_mean.name
+        projector.visualize_embeddings(writer, config)
 
     with tf.variable_scope("posterior", reuse=True):
         if mode == "conditional":
@@ -94,18 +125,10 @@ def train(
                 "prior_sample", tf.cast(p_x_given_prior_z_sample, tf.float32)
             )
 
-    kl_divergence = tf.reduce_sum(
-        tf.distributions.kl_divergence(q_z_given_x, p_z), axis=1
-    )
-    expected_log_likelihood = tf.reduce_sum(p_x_given_z.log_prob(x), axis=[1, 2, 3])
-
-    elbo = tf.reduce_sum(expected_log_likelihood - beta * kl_divergence, axis=0)
-    tf.summary.scalar("kl_divergence", tf.reduce_mean(beta * kl_divergence))
-    tf.summary.scalar(
-        "negative_log_likelihood", tf.reduce_mean(-expected_log_likelihood)
-    )
+    elbo = create_elbo(x, p_x_given_z, q_z_given_x, p_z, beta)
 
     train_op = tf.train.AdamOptimizer().minimize(-elbo)
     summary_op = tf.summary.merge_all()
 
-    run_training(train_op, summary_op)
+    run_training(train_op, summary_op, writer)
+

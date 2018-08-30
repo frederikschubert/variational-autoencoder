@@ -18,7 +18,7 @@ python vae.py
 python vae.py with cnn
 
 # Train a conditional VAE
-python vae.py with cnn with conditional
+python vae.py with conditional
 
 # Train a convolutional VAE on mnist with batch size 128
 python vae.py with cnn "batch_size=128"

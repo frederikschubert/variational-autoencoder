@@ -16,6 +16,7 @@ def train(
     _log: Logger,
     z_dimension: int,
     data_shape: List[int],
+    batch_size: int,
     mode: str,
     beta: float,  # pylint: disable=C0330
 ):
@@ -23,26 +24,37 @@ def train(
 
     _log.info("Building computation graph...")
 
-    x = dataset.make_one_shot_iterator().get_next()
+    if mode == "conditional":
+        x, y = dataset.make_one_shot_iterator().get_next()
+    else:
+        x = dataset.make_one_shot_iterator().get_next()
 
     if mode == "convolutional":
         encoder = models.create_convolutional_encoder(data_shape, z_dimension)
         decoder = models.create_convolutional_decoder(data_shape)
     else:
-        encoder = models.create_encoder(data_shape, z_dimension)
-        decoder = models.create_decoder(data_shape)
+        encoder = models.create_encoder(data_shape, z_dimension, y)
+        decoder = models.create_decoder(data_shape, z_dimension, y)
 
     with tf.name_scope("data"):
         tf.summary.image("mnist_image", x)
 
     with tf.variable_scope("variational"):
-        z_mean, z_log_variance = encoder(x)
+        if mode == "conditional":
+            z_mean, z_log_variance = encoder([x, y])
+        else:
+            z_mean, z_log_variance = encoder(x)
+
         q_z_given_x = tf.distributions.Normal(
             loc=z_mean, scale=tf.exp(0.5 * z_log_variance)
         )
 
     with tf.variable_scope("posterior", reuse=True):
-        p_x_given_z_logits = decoder(q_z_given_x.sample())
+        if mode == "conditional":
+            p_x_given_z_logits = decoder([q_z_given_x.sample(), y])
+        else:
+            p_x_given_z_logits = decoder(q_z_given_x.sample())
+
         p_x_given_z = tf.distributions.Bernoulli(logits=p_x_given_z_logits)
         posterior_sample = p_x_given_z.sample()
         # Plot a sample from the posterior for comparison with the input data
@@ -53,7 +65,11 @@ def train(
             loc=np.zeros(shape=z_dimension, dtype=np.float32),
             scale=np.ones(shape=z_dimension, dtype=np.float32),
         )
-        p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
+        if mode == "conditional":
+            r = tf.expand_dims(tf.expand_dims(tf.constant(1, dtype=tf.float32), axis=0), axis=0)
+            p_x_given_prior_z_logits = decoder([tf.expand_dims(p_z.sample(), axis=0), r])
+        else:
+            p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
         p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)
         p_x_given_prior_z_sample = p_x_given_prior_z.sample()
         # Plot a sample given a random prior to check whether it is similar to the input data

@@ -24,28 +24,43 @@ def config():
 
 
 @ex.named_config
+def conditional():
+    mode = "conditional"
+
+
+@ex.named_config
 def cnn():
     mode = "convolutional"
 
 
 @ex.capture
-def create_dataset(batch_size=64, _log: Logger = None):
+def create_dataset(batch_size=None, _log: Logger = None, mode=None):
     _log.info("Creating dataset...")
-    (x_train, _), (_, _) = tf.keras.datasets.mnist.load_data()
+    (x_train, y_train), (_, _) = tf.keras.datasets.mnist.load_data()
     x_train = x_train / 255.0
     x_train = (x_train > 0.5).astype(np.float32)
     x_train = np.expand_dims(x_train, -1)
-    return tf.data.Dataset.from_tensor_slices(x_train).repeat().batch(batch_size)
+    
+    y_train = y_train.astype(np.float32)
+    y_train = np.expand_dims(y_train, -1)
+    if mode == "conditional":
+        return (
+            tf.data.Dataset.from_tensor_slices((x_train, y_train))
+            .repeat()
+            .batch(batch_size)
+        )
+    else:
+        return tf.data.Dataset.from_tensor_slices(x_train).repeat().batch(batch_size)
 
 
 @ex.capture
-def create_writer(log_dir="./tmp", _run=None):
+def create_writer(log_dir=None, _run=None):
     return tf.summary.FileWriter(logdir=f"{log_dir}/{_run._id}")
 
 
 @ex.capture
 def run_training(
-    train_op, summary_op, iterations=50000, log_interval=1000, _log: Logger = None
+    train_op, summary_op, iterations=None, log_interval=None, _log: Logger = None
 ):
     _log.info("Training started.")
     with tf.Session() as sess:
@@ -62,4 +77,5 @@ def run_training(
                 ts = time.time()
                 iteration_summary = sess.run(summary_op)
                 writer.add_summary(iteration_summary, i)
+                writer.flush()
         _log.info("Training finished.")

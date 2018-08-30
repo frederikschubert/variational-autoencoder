@@ -75,7 +75,7 @@ def train(
                 p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)
                 p_x_given_prior_z_sample = p_x_given_prior_z.sample()
                 # Plot a sample given a random prior to check whether it is similar to the input data
-                tf.summary.image(f"prior_sample_{n}", tf.cast(p_x_given_prior_z_sample, tf.float32))
+                tf.summary.image(f"prior_sample_conditioned_on_{n}", tf.cast(p_x_given_prior_z_sample, tf.float32))
         else:
             p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
             p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)

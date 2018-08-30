@@ -36,9 +36,9 @@ def create_convolutional_decoder(data_shape):
     )
 
 
-def create_decoder(data_shape, z_dimension, conditioning_vector=None):
+def create_decoder(data_shape, z_dimension, conditional=None):
     z_inputs = layers.Input(shape=[z_dimension])
-    if conditioning_vector is not None:
+    if conditional is not None:
         condition_inputs = layers.Input(shape=[10])
         concat = layers.Concatenate()([z_inputs, condition_inputs])
         hidden1 = layers.Dense(256, activation="relu")(concat)
@@ -47,7 +47,7 @@ def create_decoder(data_shape, z_dimension, conditioning_vector=None):
     hidden2 = layers.Dense(256, activation="relu")(hidden1)
     outputs = layers.Dense(np.product(data_shape))(hidden2)
     outputs = layers.Reshape(data_shape)(outputs)
-    if conditioning_vector is not None:
+    if conditional is not None:
         return models.Model([z_inputs, condition_inputs], outputs, name="decoder")
     else:
         return models.Model(z_inputs, outputs, name="decoder")

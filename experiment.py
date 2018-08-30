@@ -19,7 +19,6 @@ def config():
     z_dimension = 100
     batch_size = 64
     mode = "default"
-    # See "Understanding disentangling in β-VAE" @ https://arxiv.org/abs/1804.03599
     beta = 1.0
 
 

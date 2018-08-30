@@ -33,17 +33,17 @@ def create_convolutional_encoder(data_shape, z_dimension):
     return models.Model(inputs, [z_mean, z_log_variance], name="encoder")
 
 
-def create_encoder(data_shape, z_dimension, conditioning_vector=None):
+def create_encoder(data_shape, z_dimension, conditional=None):
     image_inputs = layers.Input(shape=data_shape)
     flatten = layers.Flatten()(image_inputs)
-    if conditioning_vector is not None:
+    if conditional is not None:
         condition_inputs = layers.Input(shape=[10])
         flatten = layers.Concatenate()([flatten, condition_inputs])
     hidden1 = layers.Dense(256, activation="relu")(flatten)
     hidden2 = layers.Dense(256, activation="relu")(hidden1)
     z_mean = layers.Dense(z_dimension)(hidden2)
     z_log_variance = layers.Dense(z_dimension)(hidden2)
-    if conditioning_vector is not None:
+    if conditional is not None:
         return models.Model(
             [image_inputs, condition_inputs], [z_mean, z_log_variance], name="encoder"
         )

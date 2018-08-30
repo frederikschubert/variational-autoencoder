@@ -18,7 +18,7 @@ def train(
     data_shape: List[int],
     batch_size: int,
     mode: str,
-    beta: float,  # pylint: disable=C0330
+    beta: float,
 ):
     dataset = create_dataset()
 
@@ -68,20 +68,31 @@ def train(
         )
         if mode == "conditional":
             for n in range(10):
-                condition_number = tf.expand_dims(tf.one_hot(tf.constant(n), 10, on_value=1.0, off_value=0.0), axis=0)
+                condition_number = tf.expand_dims(
+                    tf.one_hot(tf.constant(n), 10, on_value=1.0, off_value=0.0), axis=0
+                )
                 p_x_given_prior_z_logits = decoder(
                     [tf.expand_dims(p_z.sample(), axis=0), condition_number]
                 )
-                p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)
+                p_x_given_prior_z = tf.distributions.Bernoulli(
+                    logits=p_x_given_prior_z_logits
+                )
                 p_x_given_prior_z_sample = p_x_given_prior_z.sample()
                 # Plot a sample given a random prior to check whether it is similar to the input data
-                tf.summary.image(f"prior_sample_conditioned_on_{n}", tf.cast(p_x_given_prior_z_sample, tf.float32))
+                tf.summary.image(
+                    f"prior_sample_conditioned_on_{n}",
+                    tf.cast(p_x_given_prior_z_sample, tf.float32),
+                )
         else:
             p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
-            p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z_logits)
+            p_x_given_prior_z = tf.distributions.Bernoulli(
+                logits=p_x_given_prior_z_logits
+            )
             p_x_given_prior_z_sample = p_x_given_prior_z.sample()
             # Plot a sample given a random prior to check whether it is similar to the input data
-            tf.summary.image("prior_sample", tf.cast(p_x_given_prior_z_sample, tf.float32))
+            tf.summary.image(
+                "prior_sample", tf.cast(p_x_given_prior_z_sample, tf.float32)
+            )
 
     kl_divergence = tf.reduce_sum(
         tf.distributions.kl_divergence(q_z_given_x, p_z), axis=1

@@ -26,16 +26,16 @@ def create_convolutional_decoder(data_shape):
     )
 
 
-def create_decoder(data_shape, z_dimension, conditional=None):
+def create_decoder(data_shape, z_dimension, conditional=False):
     inputs = layers.Input(shape=[z_dimension])
-    if conditional is not None:
+    if conditional:
         condition_inputs = layers.Input(shape=[10])
         inputs = [inputs, condition_inputs]
-        concat = layers.Concatenate()([inputs, condition_inputs])
+        concat = layers.Concatenate()(inputs)
         hidden1 = dense(256)(concat)
     else:
-        hidden1 = dense(256)(inputs)        
+        hidden1 = dense(256)(inputs)
     hidden2 = dense(256)(hidden1)
     outputs = layers.Dense(np.product(data_shape))(hidden2)
-    outputs = layers.Reshape(data_shape)(outputs)    
+    outputs = layers.Reshape(data_shape)(outputs)
     return models.Model(inputs, outputs, name="decoder")

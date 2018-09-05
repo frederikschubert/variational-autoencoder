@@ -39,8 +39,9 @@ def train(
     mode: str,
     beta: float,
     batch_size: int,
+    binary: bool,
 ):
-    train_dataset, test_dataset = create_dataset()
+    train_dataset, _ = create_dataset()
 
     writer = create_writer()
 
@@ -57,8 +58,10 @@ def train(
         encoder = models.create_convolutional_encoder(data_shape, z_dimension)
         decoder = models.create_convolutional_decoder(data_shape)
     else:
-        encoder = models.create_encoder(data_shape, z_dimension, y)
-        decoder = models.create_decoder(data_shape, z_dimension, y)
+        encoder = models.create_encoder(data_shape, z_dimension, y is not None)
+        _log.info(encoder.summary())
+        decoder = models.create_decoder(data_shape, z_dimension, y is not None)
+        _log.info(decoder.summary())
 
     with tf.name_scope("data"):
         tf.summary.image("mnist_image", x)
@@ -73,21 +76,19 @@ def train(
             loc=z_mean, scale=tf.exp(0.5 * z_log_variance)
         )
 
-    with tf.name_scope("embedding"):
-        test_set = test_dataset.batch(1000).make_one_shot_iterator().get_next()
-        test_z_mean, _ = encoder(test_set)
-        config = projector.ProjectorConfig()
-        embedding = config.embeddings.add()  # pylint: disable=E1101
-        embedding.tensor_name = test_z_mean.name
-        projector.visualize_embeddings(writer, config)
-
     with tf.variable_scope("posterior", reuse=True):
         if mode == "conditional":
-            p_x_given_z_logits = decoder([q_z_given_x.sample(), y])
+            p_x_given_z_theta = decoder([q_z_given_x.sample(), y])
         else:
-            p_x_given_z_logits = decoder(q_z_given_x.sample())
+            p_x_given_z_theta = decoder(q_z_given_x.sample())
 
-        p_x_given_z = tf.distributions.Bernoulli(logits=p_x_given_z_logits)
+        if binary:
+            p_x_given_z = tf.distributions.Bernoulli(logits=p_x_given_z_theta)
+        else:
+            p_x_given_z = tf.distributions.Normal(
+                loc=p_x_given_z_theta,
+                scale=np.ones(shape=data_shape, dtype=np.float32) * 0.1,
+            )
         posterior_sample = p_x_given_z.sample()
         # Plot a sample from the posterior for comparison with the input data
         tf.summary.image("posterior_sample", tf.cast(posterior_sample, tf.float32))
@@ -102,12 +103,19 @@ def train(
                 condition_number = tf.expand_dims(
                     tf.one_hot(tf.constant(n), 10, on_value=1.0, off_value=0.0), axis=0
                 )
-                p_x_given_prior_z_logits = decoder(
+                p_x_given_prior_z = decoder(
                     [tf.expand_dims(p_z.sample(), axis=0), condition_number]
                 )
-                p_x_given_prior_z = tf.distributions.Bernoulli(
-                    logits=p_x_given_prior_z_logits
-                )
+
+                if binary:
+                    p_x_given_prior_z = tf.distributions.Bernoulli(
+                        logits=p_x_given_prior_z
+                    )
+                else:
+                    p_x_given_prior_z = tf.distributions.Normal(
+                        loc=p_x_given_prior_z,
+                        scale=np.ones(shape=data_shape, dtype=np.float32) * 0.1,
+                    )
                 p_x_given_prior_z_sample = p_x_given_prior_z.sample()
                 # Plot a sample given a random prior to check whether it is similar to the input data
                 tf.summary.image(
@@ -115,10 +123,15 @@ def train(
                     tf.cast(p_x_given_prior_z_sample, tf.float32),
                 )
         else:
-            p_x_given_prior_z_logits = decoder(tf.expand_dims(p_z.sample(), axis=0))
-            p_x_given_prior_z = tf.distributions.Bernoulli(
-                logits=p_x_given_prior_z_logits
-            )
+            p_x_given_prior_z = decoder(tf.expand_dims(p_z.sample(), axis=0))
+            if binary:
+                p_x_given_prior_z = tf.distributions.Bernoulli(logits=p_x_given_prior_z)
+            else:
+                p_x_given_prior_z = tf.distributions.Normal(
+                    loc=p_x_given_prior_z,
+                    scale=np.ones(shape=data_shape, dtype=np.float32) * 0.1,
+                )
+
             p_x_given_prior_z_sample = p_x_given_prior_z.sample()
             # Plot a sample given a random prior to check whether it is similar to the input data
             tf.summary.image(

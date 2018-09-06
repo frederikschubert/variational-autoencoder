@@ -6,7 +6,11 @@ class VectorQuantizer:
         self.num_codes = num_codes
         self.z_dimension = z_dimension
         self.codebook = tf.get_variable(
-            "codebook", shape=[num_codes, z_dimension], dtype=tf.float32
+            "codebook",
+            shape=[num_codes, z_dimension],
+            dtype=tf.float32,
+            trainable=True,
+            initializer=tf.uniform_unit_scaling_initializer(),
         )
 
     def get_codebook_entries(self, one_hot_assignments):

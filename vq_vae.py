@@ -33,7 +33,7 @@ def train(
     quantizer = VectorQuantizer(num_codes, z_dimension)
 
     codes = encoder(x)
-    nearest_codebook_entries, one_hot_code_assignments = quantizer(codes)
+    nearest_codebook_entries, _ = quantizer(codes)
 
     # Pass nearest codebook entries to decoder and pass its gradients
     # straigth through to the encoder.

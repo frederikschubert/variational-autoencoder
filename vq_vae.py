@@ -20,6 +20,18 @@ class VectorQuantizer:
         self.ema = tf.train.ExponentialMovingAverage(decay=0.99)
         self.train_op = self.ema.apply([self.codebook])
 
+    def get_codebook_entries(self, one_hot_assignments):
+        return tf.reduce_sum(
+            tf.expand_dims(
+                one_hot_assignments, -1
+            )  # [batch_size, latent_size, num_codes, 1]
+            * tf.reshape(
+                self.ema.average(self.codebook),
+                [1, 1, self.num_codes, self.z_dimension],
+            ),
+            axis=2,
+        )
+
     def __call__(self, codes):
         distances = tf.norm(
             tf.expand_dims(codes, 2)  # [batch_size, latent_size, 1, z_dimension]
@@ -31,16 +43,7 @@ class VectorQuantizer:
         )
         code_assignments = tf.argmin(distances, -1)
         one_hot_code_assignments = tf.one_hot(code_assignments, depth=self.num_codes)
-        nearest_codebook_entries = tf.reduce_sum(
-            tf.expand_dims(
-                one_hot_code_assignments, -1
-            )  # [batch_size, latent_size, num_codes, 1]
-            * tf.reshape(
-                self.ema.average(self.codebook),
-                [1, 1, self.num_codes, self.z_dimension],
-            ),
-            axis=2,
-        )
+        nearest_codebook_entries = self.get_codebook_entries(one_hot_code_assignments)
         return nearest_codebook_entries, one_hot_code_assignments
 
 
@@ -73,7 +76,9 @@ def make_decoder(latent_size, z_dimension):
             deconv(filters=32, kernel_size=5),
             deconv(filters=32, kernel_size=5, strides=2),
             deconv(filters=32, kernel_size=5),
-            tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=5, padding="same", activation=None)
+            tf.keras.layers.Conv2DTranspose(
+                filters=1, kernel_size=5, padding="same", activation=None
+            ),
         ]
     )
 
@@ -86,12 +91,14 @@ def train(
     latent_size: int,
     z_dimension: int,
     batch_size: int,
-    data_shape: List[int],
     beta: float,
 ):
     train_dataset, _ = create_dataset()
 
     x = train_dataset.batch(batch_size).make_one_shot_iterator().get_next()
+
+    with tf.name_scope("data"):
+        tf.summary.image("mnist_image", x)
 
     writer = create_writer()
 
@@ -129,11 +136,20 @@ def train(
         tf.reduce_sum(prior_distribution.log_prob(one_hot_code_assignments), 1)
     )
 
+    with tf.variable_scope("prior", reuse=True):
+        prior_sample_codes = quantizer.get_codebook_entries(
+            prior_distribution.sample(1)
+        )
+        prior_decoder_distribution = tf.distributions.Bernoulli(
+            logits=decoder(prior_sample_codes)
+        )
+        prior_sample = prior_decoder_distribution.sample()
+        tf.summary.image("prior_sample", tf.cast(prior_sample, tf.float32))
+
     loss = reconstruction_loss + beta * commitment_loss + prior_loss
 
     tf.summary.scalar("losses/total_loss", loss)
     tf.summary.scalar("losses/reconstruction_loss", reconstruction_loss)
-    tf.summary.scalar("losses/prior_loss", prior_loss)
     tf.summary.scalar("losses/commitment_loss", beta * commitment_loss)
 
     train_op = tf.group(quantizer.train_op, tf.train.AdamOptimizer().minimize(loss))

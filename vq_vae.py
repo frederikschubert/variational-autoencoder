@@ -55,12 +55,15 @@ def train(
     commitment_loss = tf.reduce_mean(
         tf.square(codes - tf.stop_gradient(nearest_codebook_entries))
     )
+    embedding_loss = tf.reduce_mean(
+        tf.square(tf.stop_gradient(nearest_codebook_entries) - codes)
+    )
 
     # Uniform prior over codes
     prior_distribution = tf.distributions.Multinomial(
         total_count=1.0, logits=tf.zeros([latent_size, num_codes])
     )
-    # This is constant during training
+
     prior_loss = -tf.reduce_mean(
         tf.reduce_sum(prior_distribution.log_prob(one_hot_code_assignments), 1)
     )
@@ -75,13 +78,14 @@ def train(
         prior_sample = prior_decoder_distribution.sample()
         tf.summary.image("prior_sample", tf.cast(prior_sample, tf.float32))
 
-    loss = reconstruction_loss + beta * commitment_loss + prior_loss
+    loss = reconstruction_loss + embedding_loss + beta * commitment_loss + prior_loss
 
     tf.summary.scalar("losses/total_loss", loss)
+    tf.summary.scalar("losses/embedding_loss", embedding_loss)
+    tf.summary.scalar("losses/prior_loss", prior_loss)
     tf.summary.scalar("losses/reconstruction_loss", reconstruction_loss)
     tf.summary.scalar("losses/commitment_loss", beta * commitment_loss)
 
-    # train_op = tf.group(quantizer.train_op, tf.train.AdamOptimizer().minimize(loss))
     train_op = tf.train.AdamOptimizer().minimize(loss)
     summary_op = tf.summary.merge_all()
 

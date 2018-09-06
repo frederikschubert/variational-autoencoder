@@ -2,7 +2,6 @@ from logging import Logger
 from typing import List
 
 import tensorflow as tf
-from tensorboard.plugins import projector
 import numpy as np
 
 from sacred.stflow import LogFileWriter

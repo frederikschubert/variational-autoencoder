@@ -34,6 +34,15 @@ def cnn():
     mode = "convolutional"
 
 
+@ex.named_config
+def vq():
+    beta = 0.25
+    num_codes = 64
+    latent_size = 1
+    z_dimension = 16
+    binary = True
+
+
 @ex.capture
 def create_dataset(
     _log: Logger = None, mode=None, binary=None

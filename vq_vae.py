@@ -48,7 +48,7 @@ def train(
     print(decoder.summary())
 
     with tf.variable_scope("posterior", reuse=True):
-        posterior_sample = decoder_distribution.sample()
+        posterior_sample = decoder_distribution.mean()
         tf.summary.image("posterior_sample", tf.cast(posterior_sample, tf.float32))
 
     reconstruction_loss = -tf.reduce_mean(decoder_distribution.log_prob(x))
@@ -64,10 +64,6 @@ def train(
         total_count=1.0, logits=tf.zeros([latent_size, num_codes])
     )
 
-    prior_loss = -tf.reduce_mean(
-        tf.reduce_sum(prior_distribution.log_prob(one_hot_code_assignments), 1)
-    )
-
     with tf.variable_scope("prior", reuse=True):
         prior_sample_codes = quantizer.get_codebook_entries(
             prior_distribution.sample(1)
@@ -75,14 +71,13 @@ def train(
         prior_decoder_distribution = tf.distributions.Bernoulli(
             logits=decoder(prior_sample_codes)
         )
-        prior_sample = prior_decoder_distribution.sample()
+        prior_sample = prior_decoder_distribution.mean()
         tf.summary.image("prior_sample", tf.cast(prior_sample, tf.float32))
 
-    loss = reconstruction_loss + embedding_loss + beta * commitment_loss + prior_loss
+    loss = reconstruction_loss + embedding_loss + beta * commitment_loss
 
     tf.summary.scalar("losses/total_loss", loss)
     tf.summary.scalar("losses/embedding_loss", embedding_loss)
-    tf.summary.scalar("losses/prior_loss", prior_loss)
     tf.summary.scalar("losses/reconstruction_loss", reconstruction_loss)
     tf.summary.scalar("losses/commitment_loss", beta * commitment_loss)
 
